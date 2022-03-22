@@ -6,12 +6,10 @@
 public class SecurityGuard extends Thread {
     private Foyer foyer;
     private boolean isInsideFoyer;
-    private Group waitingGroup;
 
     public SecurityGuard(Foyer foyer) {
         this.foyer = foyer;
         this.isInsideFoyer = true;
-        this.waitingGroup = null;
     }
 
     @Override
@@ -22,29 +20,25 @@ public class SecurityGuard extends Thread {
                 // to check for arriving groups. If no arriving groups, periodically
                 // goes inside for an interval to check for departing groups.
                 if (this.isInsideFoyer) {
-                    // Group departingGroup = this.foyer.guardCheckInside();
-                    // if (departingGroup != null) {
-                    if (waitingGroup != null) {
+                    Group departingGroup = this.foyer.groupWaitingInside();
+                    if (departingGroup != null) {
                         sleep(Params.SECURITY_TIME + Params.WALKING_TIME);
-                        // this.foyer.sendOffHome(departingGroup);
-                        this.foyer.sendOffHome(waitingGroup);
-                        this.waitingGroup = null;
+                        this.foyer.sendOffHome(departingGroup);
+                        sleep(Params.operatePause());
                     } else {
                         sleep(Params.operatePause() + Params.WALKING_TIME);
-                        this.waitingGroup = foyer.guardCheckOutside();
+                        this.foyer.guardCheckOutside();
                     }
                     this.isInsideFoyer = false;
                 } else {
-                    // Group groupWaitingOutside = this.foyer.guardCheckOutside();
-                    // if (groupWaitingOutside != null) {
-                    if (waitingGroup != null) {
+                    Group groupWaitingOutside = this.foyer.groupWaitingOutside();
+                    if (groupWaitingOutside != null) {
                         sleep(Params.WALKING_TIME + Params.SECURITY_TIME);
-                        // this.foyer.escortThroughSecurity(groupWaitingOutside);
-                        this.foyer.escortThroughSecurity(waitingGroup);
-                        this.waitingGroup = null;
+                        this.foyer.escortThroughSecurity(groupWaitingOutside);
+                        sleep(Params.operatePause());
                     } else {
                         sleep(Params.operatePause() + Params.WALKING_TIME);
-                        this.waitingGroup = foyer.guardCheckInside();
+                        this.foyer.guardCheckInside();
                     }
                     this.isInsideFoyer = true;
                 }
