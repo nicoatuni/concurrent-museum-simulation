@@ -19,25 +19,34 @@ public class SecurityGuard extends Thread {
                 // If foyer is empty, periodically goes outside for an interval
                 // to check for arriving groups. If no arriving groups, periodically
                 // goes inside for an interval to check for departing groups.
+                // sleep(Params.operatePause());
                 if (this.isInsideFoyer) {
                     Group departingGroup = this.foyer.groupWaitingInside();
+                    if (departingGroup == null) {
+                        sleep(Params.operatePause());
+                        departingGroup = this.foyer.groupWaitingInside();
+                    }
+
                     if (departingGroup != null) {
                         sleep(Params.SECURITY_TIME + Params.WALKING_TIME);
                         this.foyer.sendOffHome(departingGroup);
-                        sleep(Params.operatePause());
                     } else {
-                        sleep(Params.operatePause() + Params.WALKING_TIME);
+                        sleep(Params.WALKING_TIME);
                         this.foyer.guardCheckOutside();
                     }
                     this.isInsideFoyer = false;
                 } else {
                     Group groupWaitingOutside = this.foyer.groupWaitingOutside();
+                    if (groupWaitingOutside == null) {
+                        sleep(Params.operatePause());
+                        groupWaitingOutside = this.foyer.groupWaitingOutside();
+                    }
+
                     if (groupWaitingOutside != null) {
                         sleep(Params.WALKING_TIME + Params.SECURITY_TIME);
                         this.foyer.escortThroughSecurity(groupWaitingOutside);
-                        sleep(Params.operatePause());
                     } else {
-                        sleep(Params.operatePause() + Params.WALKING_TIME);
+                        sleep(Params.WALKING_TIME);
                         this.foyer.guardCheckInside();
                     }
                     this.isInsideFoyer = true;

@@ -82,7 +82,7 @@ public class Foyer implements Location {
             this.enteringGroup = group;
             wait();
         }
-        // System.out.println(this.checkedInGroup + " arrives at the museum");
+        this.enteringGroup = group;
     }
 
     public synchronized void departFromMuseum() throws InterruptedException {
