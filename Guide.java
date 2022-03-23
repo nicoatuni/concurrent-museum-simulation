@@ -1,5 +1,6 @@
 /**
- * TODO: add top-level docs
+ * Represents the guides of the museum, escorting groups between rooms and/or
+ * the foyer.
  * 
  * @author Nico Dinata (770318)
  */
@@ -10,7 +11,7 @@ public class Guide extends Thread {
     /** The location that the guide escorts groups to. */
     private Location targetStation;
 
-    // constructor for creating a new guide
+    /** Constructor for creating a new guide. */
     public Guide(Location originStation, Location targetStation) {
         this.originStation = originStation;
         this.targetStation = targetStation;
@@ -21,7 +22,7 @@ public class Guide extends Thread {
     public void run() {
         while (!isInterrupted()) {
             try {
-                // try to escort the origin station's group to the next location
+                // escort the origin station's group to the next location
                 Group leavingGroup = originStation.escortOutOf();
 
                 // escorting group to the next room...
@@ -29,7 +30,7 @@ public class Guide extends Thread {
 
                 targetStation.escortInto(leavingGroup);
 
-                // walking back to original waiting station
+                // walking back to original waiting station...
                 sleep(Params.WALKING_TIME);
             } catch (InterruptedException e) {
                 this.interrupt();

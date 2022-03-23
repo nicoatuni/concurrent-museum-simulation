@@ -12,7 +12,7 @@ public class Room implements Location {
     /** The group currently occupying this room (can be null). */
     private Group occupantGroup;
 
-    // constructor for creating a new empty room of the given index
+    /** Constructor for creating a new empty room of the given index. */
     public Room(int index) {
         this.index = index;
         this.occupantGroup = null;
