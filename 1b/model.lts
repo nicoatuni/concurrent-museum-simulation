@@ -1,0 +1,147 @@
+/*
+ * Nico Eka Dinata (770318)
+ *
+ * This file contains the FSP model for the MoPA system specification from
+ * Assignment 1a, specifically referencing the implementation of the sample
+ * solution. Almost all of the components of the system are modelled here,
+ * namely the producer and consumer, the guides, the guard, the rooms, and the
+ * foyer (although only 4 rooms are used to make running checks feasible).
+ *
+ * All these processes are synced in the MAIN process, which is further
+ * synced with some safety checks to become SAFE_MAIN. Safety check for this
+ * model fails, however, as LTSA informs us that there is a potential deadlock.
+ * The modified model that corrects this deadlock can be found in the file
+ * `model_modified.lts`.
+ *
+ */
+
+/*
+ * Helper constants
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+const False = 0
+const True  = 1
+range Bool  = False..True
+
+const Room_Count = 4 // number of rooms excluding foyer
+range All_Rooms  = 0..Room_Count-1
+
+
+/*
+ * System processes
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+// producer and consumer do nothing but produce and consume
+// groups indefinitely
+PRODUCER = (arrive_at_museum -> PRODUCER).
+CONSUMER = (depart_from_museum -> CONSUMER).
+
+// guides repeatedly escort groups from "current" location to the next
+GUIDE = (current.leave -> next.enter -> GUIDE).
+
+// guard alternates between being inside and outside the foyer
+GUARD = (change_location -> GUARD).
+
+// all rooms start out empty (not occupied)
+ROOM = ROOM[False],
+ROOM[is_occupied: Bool] = (
+    when (is_occupied == False) enter -> ROOM[True]
+	| when (is_occupied == True) leave -> ROOM[False]
+).
+
+// foyer starts out empty and guard starts outside of the museum
+FOYER = FOYER[False][True],
+FOYER[is_occupied: Bool][is_guard_outside: Bool] = (
+
+	// when the guard is outside with no group inside the foyer, the guard
+	// could either escort a new group in or simply go inside the museum
+	// without bringing the group along
+	when (is_occupied == False && is_guard_outside == True)
+		arrive_at_museum -> FOYER[True][False]
+	| when (is_occupied == False && is_guard_outside == True)
+		guard.change_location -> FOYER[is_occupied][False]
+
+	// when the guard is inside the foyer with no group in it, a departing
+	// group could enter the foyer to be escorted out or the guard can just
+	// go outside without bringing any group along
+	| when (is_occupied == False && is_guard_outside == False)
+		foyer.enter -> FOYER[True][True]
+	| when (is_occupied == False && is_guard_outside == False)
+		guard.change_location -> FOYER[is_occupied][True]
+
+	// when the guard is outside to escort the departing group,
+	// it departs from the museum (gets consumed)
+	| when (is_occupied == True && is_guard_outside == True)
+		depart_from_museum -> FOYER[False][is_guard_outside]
+
+	// when the guard is available to escort the new group through
+	// security checks, it can leave the foyer to head to room 0
+	| when (is_occupied == True && is_guard_outside == False)
+		foyer.leave -> FOYER[False][is_guard_outside]
+).
+
+// sync all processes together to form the whole system
+||MAIN = (
+	PRODUCER
+	|| CONSUMER
+	|| FOYER
+	|| guard:GUARD
+	|| room[i: All_Rooms]:ROOM  // all the rooms
+	
+	// first guide
+	|| GUIDE/{
+		foyer.leave/current.leave,
+		room[0].enter/next.enter
+	}
+	
+	// last guide
+	|| GUIDE/{
+		room[Room_Count-1].leave/current.leave,
+		foyer.enter/next.enter
+	}
+
+	// all other guides
+	|| forall[i: 0..Room_Count-2] (GUIDE/{
+		room[i].leave/current.leave,
+		room[i+1].enter/next.enter
+	})
+).
+
+
+/*
+ * Safety and liveness property checks
+ * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
+// foyer should be not occupied before another group can arrive at or enter it
+property SAFE_FOYER_ARRIVE = (
+	arrive_at_museum -> foyer.leave -> SAFE_FOYER_ARRIVE
+).
+property SAFE_FOYER_DEPART = (
+	foyer.enter -> depart_from_museum -> SAFE_FOYER_DEPART
+).
+
+// each room should be vacated before another group can enter it
+property SAFE_ROOMS(N=0) = (room[N].enter -> room[N].leave -> SAFE_ROOMS).
+
+||SAFE_MAIN = (
+	MAIN
+	|| SAFE_FOYER_ARRIVE
+	|| SAFE_FOYER_DEPART
+	|| forall[i: All_Rooms] (SAFE_ROOMS(i))
+).
+
+// if a group enters a room, it always has to be able to eventually leave it
+assert NO_TRAP_ROOMS = forall[i:All_Rooms] [](room[i].enter -> <>room[i].leave)
+
+// if a group enters the foyer, it always has to be able to eventually leave it
+assert NO_TRAP_FOYER_ARRIVE = [](arrive_at_museum -> <>foyer.leave)
+assert NO_TRAP_FOYER_DEPART = [](foyer.enter -> <>depart_from_museum)
+
+assert ALL = (NO_TRAP_ROOMS && NO_TRAP_FOYER_ARRIVE && NO_TRAP_FOYER_DEPART)
+
+// Groups need to be able to keep getting produced and consumed indefinitely
+// for liveness to be satisfied. As these are the start and end actions,
+// either of them not being able to progress implies the existence of a
+// starved process somewhere in the system.
+progress GROUP_PRODUCTION = {arrive_at_museum}
+progress GROUP_CONSUMPTION = {depart_from_museum}
